@@ -1,133 +1,123 @@
 #include <Audio.h>
 #include <Console.h>
-#include <wdsp.h>
+#include <portaudio.h>
 #include <QDebug>
-#include <string.h>
+#include <cmath>
 
 Audio::Audio(Console* console, QObject* parent)
     : QObject(parent),
       console_(console),
+      initialized_(false),
       stream_(nullptr),
-      sampleRate_(48000),
-      bufferSize_(256),
-      initialized_(false) {
-    Pa_Initialize();
+      phase_(0.0) {
+    qDebug() << "Audio initialized";
 }
 
 Audio::~Audio() {
     stop();
-    Pa_Terminate();
 }
 
 bool Audio::initialize(int sampleRate, int bufferSize) {
-    sampleRate_ = sampleRate;
-    bufferSize_ = bufferSize;
-
-    // Defer WDSP receiver initialization to Console
-    console_->setSampleRate(sampleRate_);
-
-    // Set up PortAudio stream
-    PaError err;
-    PaStreamParameters inputParams, outputParams;
-
-    inputParams.device = Pa_GetDefaultInputDevice();
-    if (inputParams.device == paNoDevice) {
-        qDebug() << "No input device available";
-        return false;
-    }
-    inputParams.channelCount = 2; // Stereo (I/Q)
-    inputParams.sampleFormat = paFloat32;
-    inputParams.suggestedLatency = Pa_GetDeviceInfo(inputParams.device)->defaultLowInputLatency;
-    inputParams.hostApiSpecificStreamInfo = nullptr;
-
-    outputParams.device = Pa_GetDefaultOutputDevice();
-    if (outputParams.device == paNoDevice) {
-        qDebug() << "No output device available";
-        return false;
-    }
-    outputParams.channelCount = 2; // Stereo (I/Q)
-    outputParams.sampleFormat = paFloat32;
-    outputParams.suggestedLatency = Pa_GetDeviceInfo(outputParams.device)->defaultLowOutputLatency;
-    outputParams.hostApiSpecificStreamInfo = nullptr;
-
-    err = Pa_OpenStream(&stream_, &inputParams, &outputParams, sampleRate_, bufferSize_,
-                        paNoFlag, audioCallback, this);
+    PaError err = Pa_Initialize();
     if (err != paNoError) {
-        qDebug() << "PortAudio error:" << Pa_GetErrorText(err);
+        qDebug() << "PortAudio initialization failed:" << Pa_GetErrorText(err);
+        return false;
+    }
+
+    PaStreamParameters outputParameters;
+    outputParameters.device = paNoDevice;
+
+    // Prefer Jabra SPEAK 510 USB (Card 4, Device 0)
+    for (int i = 0; i < Pa_GetDeviceCount(); ++i) {
+        const PaDeviceInfo* deviceInfo = Pa_GetDeviceInfo(i);
+        if (deviceInfo && QString(deviceInfo->name).contains("Jabra SPEAK 510 USB") && 
+            deviceInfo->maxOutputChannels >= 2) {
+            outputParameters.device = i;
+            break;
+        }
+    }
+
+    // Fallback to default device
+    if (outputParameters.device == paNoDevice) {
+        outputParameters.device = Pa_GetDefaultOutputDevice();
+        if (outputParameters.device == paNoDevice) {
+            qDebug() << "No default output device found";
+            Pa_Terminate();
+            return false;
+        }
+    }
+
+    const PaDeviceInfo* deviceInfo = Pa_GetDeviceInfo(outputParameters.device);
+    qDebug() << "Selected audio device:" << deviceInfo->name
+             << "Host API:" << Pa_GetHostApiInfo(deviceInfo->hostApi)->name;
+
+    outputParameters.channelCount = 2;
+    outputParameters.sampleFormat = paFloat32;
+    outputParameters.suggestedLatency = deviceInfo->defaultLowOutputLatency;
+    outputParameters.hostApiSpecificStreamInfo = nullptr;
+
+    err = Pa_OpenStream(
+        &stream_,
+        nullptr, // No input
+        &outputParameters,
+        sampleRate,
+        bufferSize,
+        paClipOff,
+        nullptr, // Muted: no callback
+        nullptr  // No user data
+    );
+    if (err != paNoError) {
+        qDebug() << "Failed to open PortAudio stream:" << Pa_GetErrorText(err);
+        Pa_Terminate();
         return false;
     }
 
     initialized_ = true;
+    qDebug() << "Audio initialized with sample rate:" << sampleRate << "buffer size:" << bufferSize;
     return true;
 }
 
-bool Audio::start() {
-    if (!initialized_) {
-        qDebug() << "Audio not initialized";
-        return false;
-    }
-    PaError err = Pa_StartStream(stream_);
-    if (err != paNoError) {
-        qDebug() << "PortAudio start error:" << Pa_GetErrorText(err);
-        return false;
-    }
-    qDebug() << "Audio stream started";
-    return true;
-}
-
-void Audio::stop() {
-    if (stream_) {
-        Pa_StopStream(stream_);
-        Pa_CloseStream(stream_);
-        stream_ = nullptr;
-    }
-    // Defer WDSP cleanup to Console
-    console_->setAudioMode("STOP");
-}
-
-int Audio::audioCallback(const void* inputBuffer, void* outputBuffer,
-                         unsigned long framesPerBuffer,
+int Audio::audioCallback(const void* input, void* output, unsigned long frameCount,
                          const PaStreamCallbackTimeInfo* timeInfo,
-                         PaStreamCallbackFlags statusFlags,
-                         void* userData) {
-    float* in = (float*)inputBuffer;
-    float* out = (float*)outputBuffer;
-    int error = 0;
+                         PaStreamCallbackFlags statusFlags, void* userData) {
+    Audio* audio = static_cast<Audio*>(userData);
+    float* out = static_cast<float*>(output);
+    const double frequency = 440.0;
+    const double sampleRate = 48000.0;
+    const double amplitude = 0.5;
 
-    // Process audio with WDSP (channel 0)
-    if (inputBuffer && outputBuffer) {
-        // Split stereo input/output into I/Q buffers
-        float* Iin = new float[framesPerBuffer];
-        float* Qin = new float[framesPerBuffer];
-        float* Iout = new float[framesPerBuffer];
-        float* Qout = new float[framesPerBuffer];
-
-        // Interleave stereo: in[0,2,4,...] = I, in[1,3,5,...] = Q
-        for (unsigned long i = 0; i < framesPerBuffer; i++) {
-            Iin[i] = in[2 * i];
-            Qin[i] = in[2 * i + 1];
+    for (unsigned long i = 0; i < frameCount; ++i) {
+        float sample = amplitude * sin(audio->phase_);
+        out[i * 2] = sample;
+        out[i * 2 + 1] = sample;
+        audio->phase_ += 2.0 * M_PI * frequency / sampleRate;
+        if (audio->phase_ > 2.0 * M_PI) {
+            audio->phase_ -= 2.0 * M_PI;
         }
-
-        // WDSP processing
-        fexchange2(0, Iin, Qin, Iout, Qout, &error);
-        if (error != 0) {
-            qDebug() << "WDSP fexchange2 error:" << error;
-        }
-
-        // Recombine I/Q into stereo output
-        for (unsigned long i = 0; i < framesPerBuffer; i++) {
-            out[2 * i] = Iout[i];
-            out[2 * i + 1] = Qout[i];
-        }
-
-        delete[] Iin;
-        delete[] Qin;
-        delete[] Iout;
-        delete[] Qout;
-    } else if (outputBuffer) {
-        // Zero output if no input
-        memset(out, 0, framesPerBuffer * 2 * sizeof(float));
     }
 
     return paContinue;
+}
+
+void Audio::start() {
+    if (!initialized_ || !stream_) {
+        qDebug() << "Audio not initialized or stream is null, cannot start";
+        return;
+    }
+    PaError err = Pa_StartStream(stream_);
+    if (err != paNoError) {
+        qDebug() << "Failed to start PortAudio stream:" << Pa_GetErrorText(err);
+        return;
+    }
+    qDebug() << "Audio stream started";
+}
+
+void Audio::stop() {
+    if (initialized_ && stream_) {
+        Pa_CloseStream(stream_);
+        Pa_Terminate();
+        initialized_ = false;
+        stream_ = nullptr;
+        qDebug() << "Audio stream stopped";
+    }
 }
