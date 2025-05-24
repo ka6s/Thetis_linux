@@ -14,9 +14,9 @@ BUILD_DIR = build
 LIB_DIR = lib
 
 # Source and header files
-SRCS = $(SRC_DIR)/main.cpp $(SRC_DIR)/TCIServer.cpp $(SRC_DIR)/cwkeyer.cpp $(SRC_DIR)/audio.cpp $(SRC_DIR)/cat.cpp $(SRC_DIR)/console.cpp $(SRC_DIR)/setup.cpp $(SRC_DIR)/display.cpp $(SRC_DIR)/filter.cpp
+SRCS = $(SRC_DIR)/main.cpp $(SRC_DIR)/TCIServer.cpp $(SRC_DIR)/cwkeyer.cpp $(SRC_DIR)/audio.cpp $(SRC_DIR)/cat.cpp $(SRC_DIR)/console.cpp $(SRC_DIR)/setup.cpp $(SRC_DIR)/display.cpp $(SRC_DIR)/filter.cpp $(SRC_DIR)/vfo.cpp
 OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
-MOC_SRCS = $(INCLUDE_DIR)/TCIServer.h $(INCLUDE_DIR)/CWKeyer.h $(INCLUDE_DIR)/Audio.h $(INCLUDE_DIR)/CAT.h $(INCLUDE_DIR)/Console.h $(INCLUDE_DIR)/Setup.h $(INCLUDE_DIR)/Display.h $(INCLUDE_DIR)/Filter.h
+MOC_SRCS = $(INCLUDE_DIR)/TCIServer.h $(INCLUDE_DIR)/CWKeyer.h $(INCLUDE_DIR)/Audio.h $(INCLUDE_DIR)/CAT.h $(INCLUDE_DIR)/Console.h $(INCLUDE_DIR)/Setup.h $(INCLUDE_DIR)/Display.h $(INCLUDE_DIR)/Filter.h $(INCLUDE_DIR)/VFO.h
 MOC_OBJS = $(MOC_SRCS:$(INCLUDE_DIR)/%.h=$(BUILD_DIR)/moc_%.o)
 
 # Target executable

@@ -6,6 +6,7 @@
 #include <Setup.h>
 #include <Display.h>
 #include <Filter.h>
+#include <VFO.h>
 #include <QDebug>
 
 int main(int argc, char* argv[]) {
@@ -46,6 +47,13 @@ int main(int argc, char* argv[]) {
     filter.setFilterType("Bandpass");
     filter.setFilterBandwidth(3000);
     qDebug() << "Filter initialized";
+
+    // Initialize VFO
+    VFO vfo(&console);
+    vfo.setFrequency(7000000);
+    vfo.setVFOMode("VFO A");
+    vfo.setStepSize(100);
+    qDebug() << "VFO initialized";
 
     // Show Setup dialog
     Setup setup(&console);

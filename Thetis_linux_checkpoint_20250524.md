@@ -28,6 +28,7 @@ Thetis_linux/
 │   ├── Setup.h
 │   ├── Display.h
 │   ├── Filter.h
+│   ├── VFO.h
 ├── src/Console/
 │   ├── main.cpp
 │   ├── console.cpp
@@ -38,6 +39,7 @@ Thetis_linux/
 │   ├── setup.cpp
 │   ├── display.cpp
 │   ├── filter.cpp
+│   ├── vfo.cpp
 ├── Makefile
 ├── build/ (generated during build)
 ├── ../wdsp/libwdsp.a (external WDSP library)
@@ -106,7 +108,21 @@ CAT skipped (no serial device).
 
 No segmentation faults (fixed via OpenChannel in console.cpp).
 
+VFO: Added to manage frequency (default 7 MHz), VFO mode (A, B, Split), and step size (default 100 Hz).
+* Integrated into Setup dialog with controls for Frequency (0.1–30 MHz), VFO Mode, and Step Size (10–10000 Hz).
+* Updates Console frequency via setFrequency; WDSP integration pending.
+
+Setup: Now includes VFO controls in General tab:
+* Frequency (QDoubleSpinBox, MHz, 6 decimals).
+* VFO Mode (QComboBox: VFO A, VFO B, Split).
+* Step Size (QSpinBox, Hz).
+Console: Added channel() accessor for future WDSP use.
+Makefile: Updated to include vfo.cpp and VFO.h.
+
+
 Known Issues
+VFO: setFrequency and setVFOMode are placeholders; WDSP frequency functions (e.g., SetRXAFrequency) not yet implemented.
+
 Filter: setFilterType and setFilterBandwidth are placeholders; no WDSP filter implementation yet.
 
 Display: Uses simulated sine wave data; no real IQ data integration.

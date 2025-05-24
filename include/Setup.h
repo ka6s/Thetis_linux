@@ -6,9 +6,11 @@
 #include <QComboBox>
 #include <QSpinBox>
 #include <QPushButton>
+#include <QDoubleSpinBox>
 
 class Console;
 class Filter;
+class VFO;
 
 class Setup : public QDialog {
     Q_OBJECT
@@ -26,11 +28,15 @@ private:
 
     Console* console_;
     Filter* filter_;
+    VFO* vfo_;
     QTabWidget* tabWidget_;
     QComboBox* sampleRateCombo_;
     QComboBox* modeCombo_;
     QComboBox* filterTypeCombo_;
     QSpinBox* filterBandwidthSpin_;
+    QDoubleSpinBox* frequencySpin_;
+    QComboBox* vfoModeCombo_;
+    QSpinBox* vfoStepSpin_;
     QPushButton* applyButton_;
     QPushButton* cancelButton_;
 };
