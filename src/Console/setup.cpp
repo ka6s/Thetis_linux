@@ -7,11 +7,11 @@
 #include <QLabel>
 #include <QDebug>
 
-Setup::Setup(Console* console, QWidget* parent)
+Setup::Setup(Console* console, Filter* filter, VFO* vfo, QWidget* parent)
     : QDialog(parent),
       console_(console),
-      filter_(new Filter(console, this)),
-      vfo_(new VFO(console, this)) {
+      filter_(filter),
+      vfo_(vfo) {
     setWindowTitle("Thetis Setup");
     setupUI();
 }

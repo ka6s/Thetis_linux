@@ -9,6 +9,8 @@
 #include <QDir>
 #include <QMessageBox>
 #include <QStandardPaths>
+#include <QDateTime>
+#include <cmath>
 
 WaveControl::WaveControl(Console* console, QWidget* parent)
     : QDialog(parent),
@@ -165,7 +167,6 @@ void WaveControl::updatePlaylist() {
 }
 
 bool WaveControl::openWaveFile(const QString& filename, int id) {
-    // Simplified: Delegate to Audio class (implemented later)
     if (!QFile::exists(filename)) {
         QMessageBox::critical(this, "Bad Filename", "Filename doesn't exist: " + filename);
         if (currently_playing_ >= 0) {
@@ -173,9 +174,8 @@ bool WaveControl::openWaveFile(const QString& filename, int id) {
         }
         return false;
     }
-    // Placeholder for actual WAV file validation and playback setup
     qDebug() << "Opening WAV file:" << filename << "ID:" << id;
-    return true; // Implement in Audio class
+    return true; // Placeholder
 }
 
 bool WaveControl::checkSampleRate(int rate) {
@@ -236,7 +236,6 @@ void WaveControl::onPlayToggled(bool checked) {
         checkBoxPlay_->setStyleSheet("background-color: yellow");
         checkBoxPause_->setEnabled(true);
     } else {
-        // Stop playback (implement in Audio)
         if (checkBoxPause_->isChecked()) {
             checkBoxPause_->setChecked(false);
         }
@@ -290,12 +289,10 @@ void WaveControl::onRecordToggled(bool checked) {
         QString filename = wave_folder_ + "/" + console_->getRX1DSPMode() + " " +
                            QString::number(console_->getVFOAFreq(), 'f', 6) + "MHz [" +
                            QString::number(console_->getSampleRate() / 1000) + "k] " +
-                           QDateTime::currentDateTime().toString("yyyy-MM-dd hh mm ss") + ".wav";
+                           QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss") + ".wav";
         filename.replace("/", "-");
-        // Start recording (implement in Audio)
         qDebug() << "Recording to:" << filename;
     } else {
-        // Stop recording
         checkBoxRecord_->setStyleSheet("");
     }
     console_->setWaveRecord(checked);
@@ -306,10 +303,8 @@ void WaveControl::onQuickRecToggled(bool checked) {
         chkQuickRec_->setStyleSheet("background-color: yellow");
         chkQuickPlay_->setEnabled(true);
         QString filename = console_->getAppDataPath() + "SDRQuickAudio.wav";
-        // Start recording (implement in Audio)
         qDebug() << "Quick recording to:" << filename;
     } else {
-        // Stop recording
         chkQuickRec_->setStyleSheet("");
     }
     console_->setWaveRecord(checked);
@@ -324,7 +319,6 @@ void WaveControl::onQuickPlayToggled(bool checked) {
         }
         chkQuickPlay_->setStyleSheet("background-color: yellow");
     } else {
-        // Stop playback
         chkQuickPlay_->setStyleSheet("");
     }
     console_->setWavePlayback(checked);

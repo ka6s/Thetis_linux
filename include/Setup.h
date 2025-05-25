@@ -16,7 +16,7 @@ class Setup : public QDialog {
     Q_OBJECT
 
 public:
-    explicit Setup(Console* console, QWidget* parent = nullptr);
+    explicit Setup(Console* console, Filter* filter, VFO* vfo, QWidget* parent = nullptr);
     ~Setup();
 
 private slots:

@@ -7,7 +7,10 @@
 #include <Display.h>
 #include <Filter.h>
 #include <VFO.h>
+#include <NetworkIO.h>
+#include <WaveControl.h>
 #include <QDebug>
+#include <QTimer>
 
 int main(int argc, char* argv[]) {
     qDebug() << "Starting Thetis_linux";
@@ -17,12 +20,10 @@ int main(int argc, char* argv[]) {
     Console console;
     qDebug() << "Console initialized";
 
-    // Initialize TCP server
     TCPIPtciSocketListener server(40000, &console);
     server.Start();
     qDebug() << "TCP server started on port 40000";
 
-    // Initialize CW keyer
     CWKeyer keyer(&console);
     keyer.setIambic(true);
     keyer.setKeyerSpeed(20);
@@ -33,7 +34,6 @@ int main(int argc, char* argv[]) {
     keyer.key(false);
     qDebug() << "CW keyer initialized and tested";
 
-    // Initialize audio
     Audio audio(&console);
     if (audio.initialize(48000, 256)) {
         audio.start();
@@ -42,30 +42,41 @@ int main(int argc, char* argv[]) {
         qDebug() << "Audio initialization failed";
     }
 
-    // Initialize filter
     Filter filter(&console);
     filter.setFilterType("Bandpass");
     filter.setFilterBandwidth(3000);
     qDebug() << "Filter initialized";
 
-    // Initialize VFO
     VFO vfo(&console);
     vfo.setFrequency(7000000);
     vfo.setVFOMode("VFO A");
     vfo.setStepSize(100);
     qDebug() << "VFO initialized";
 
-    // Show Setup dialog
-    Setup setup(&console);
+    NetworkIO networkIO(&console);
+    if (networkIO.initialize("192.168.1.100", 1024)) {
+        networkIO.sendCommand("START");
+        qDebug() << "NetworkIO initialized and START command sent";
+    } else {
+        qDebug() << "NetworkIO initialization failed";
+    }
+
+    QTimer iqTimer(&app);
+    QObject::connect(&iqTimer, &QTimer::timeout, &networkIO, &NetworkIO::simulateIQData);
+    iqTimer.start(1000);
+
+    Setup setup(&console, &filter, &vfo);
     setup.show();
     qDebug() << "Setup dialog shown";
 
-    // Show Display widget
-    Display display(&console, nullptr);
+    Display display(&console, &networkIO);
     display.show();
     qDebug() << "Display widget shown";
 
-    // CAT initialization skipped
+    WaveControl waveControl(&console);
+    waveControl.show();
+    qDebug() << "WaveControl dialog shown";
+
     qDebug() << "No serial device connected, skipping CAT initialization";
 
     qDebug() << "Entering event loop";

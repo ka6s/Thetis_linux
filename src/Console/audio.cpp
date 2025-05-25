@@ -1,6 +1,5 @@
 #include <Audio.h>
 #include <Console.h>
-#include <portaudio.h>
 #include <QDebug>
 #include <cmath>
 
@@ -9,7 +8,8 @@ Audio::Audio(Console* console, QObject* parent)
       console_(console),
       initialized_(false),
       stream_(nullptr),
-      phase_(0.0) {
+      playbackEnabled_(false),
+      preampGain_(1.0) {
     qDebug() << "Audio initialized";
 }
 
@@ -27,7 +27,6 @@ bool Audio::initialize(int sampleRate, int bufferSize) {
     PaStreamParameters outputParameters;
     outputParameters.device = paNoDevice;
 
-    // Prefer Jabra SPEAK 510 USB (Card 4, Device 0)
     for (int i = 0; i < Pa_GetDeviceCount(); ++i) {
         const PaDeviceInfo* deviceInfo = Pa_GetDeviceInfo(i);
         if (deviceInfo && QString(deviceInfo->name).contains("Jabra SPEAK 510 USB") && 
@@ -37,7 +36,6 @@ bool Audio::initialize(int sampleRate, int bufferSize) {
         }
     }
 
-    // Fallback to default device
     if (outputParameters.device == paNoDevice) {
         outputParameters.device = Pa_GetDefaultOutputDevice();
         if (outputParameters.device == paNoDevice) {
@@ -58,13 +56,13 @@ bool Audio::initialize(int sampleRate, int bufferSize) {
 
     err = Pa_OpenStream(
         &stream_,
-        nullptr, // No input
+        nullptr,
         &outputParameters,
         sampleRate,
         bufferSize,
         paClipOff,
-        nullptr, // Muted: no callback
-        nullptr  // No user data
+        nullptr, // Muted
+        nullptr
     );
     if (err != paNoError) {
         qDebug() << "Failed to open PortAudio stream:" << Pa_GetErrorText(err);
@@ -75,28 +73,6 @@ bool Audio::initialize(int sampleRate, int bufferSize) {
     initialized_ = true;
     qDebug() << "Audio initialized with sample rate:" << sampleRate << "buffer size:" << bufferSize;
     return true;
-}
-
-int Audio::audioCallback(const void* input, void* output, unsigned long frameCount,
-                         const PaStreamCallbackTimeInfo* timeInfo,
-                         PaStreamCallbackFlags statusFlags, void* userData) {
-    Audio* audio = static_cast<Audio*>(userData);
-    float* out = static_cast<float*>(output);
-    const double frequency = 440.0;
-    const double sampleRate = 48000.0;
-    const double amplitude = 0.5;
-
-    for (unsigned long i = 0; i < frameCount; ++i) {
-        float sample = amplitude * sin(audio->phase_);
-        out[i * 2] = sample;
-        out[i * 2 + 1] = sample;
-        audio->phase_ += 2.0 * M_PI * frequency / sampleRate;
-        if (audio->phase_ > 2.0 * M_PI) {
-            audio->phase_ -= 2.0 * M_PI;
-        }
-    }
-
-    return paContinue;
 }
 
 void Audio::start() {
@@ -120,4 +96,41 @@ void Audio::stop() {
         stream_ = nullptr;
         qDebug() << "Audio stream stopped";
     }
+}
+
+bool Audio::startPlayback(const QString& filename, int id) {
+    qDebug() << "Starting playback for:" << filename << "ID:" << id;
+    // Implement WAV file reading and playback
+    return true; // Placeholder
+}
+
+bool Audio::startRecording(const QString& filename, int channels, int sampleRate) {
+    qDebug() << "Starting recording to:" << filename << "Channels:" << channels << "SampleRate:" << sampleRate;
+    // Implement WAV file writing
+    return true; // Placeholder
+}
+
+void Audio::stopPlayback(int id) {
+    qDebug() << "Stopping playback for ID:" << id;
+}
+
+void Audio::stopRecording() {
+    qDebug() << "Stopping recording";
+}
+
+void Audio::setPlaybackEnabled(bool enabled) {
+    playbackEnabled_ = enabled;
+    qDebug() << "Playback enabled:" << enabled;
+}
+
+void Audio::setPreamp(double gain) {
+    preampGain_ = gain;
+    qDebug() << "Preamp gain set to:" << gain;
+}
+
+int Audio::audioCallback(const void* input, void* output, unsigned long frameCount,
+                         const PaStreamCallbackTimeInfo* timeInfo,
+                         PaStreamCallbackFlags statusFlags, void* userData) {
+    // Implement playback/recording logic
+    return paContinue;
 }
