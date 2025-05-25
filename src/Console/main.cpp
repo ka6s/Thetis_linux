@@ -1,84 +1,39 @@
 #include <QApplication>
-#include <Console.h>
-#include <TCIServer.h>
-#include <CWKeyer.h>
-#include <Audio.h>
-#include <Setup.h>
-#include <Display.h>
-#include <Filter.h>
-#include <VFO.h>
-#include <NetworkIO.h>
-#include <WaveControl.h>
 #include <QDebug>
-#include <QTimer>
+#include <Console.h>
+#include <WaveControl.h>
+#include <Radio.h>
+#include <NetworkIO.h>
+#include <Display.h>
 
-int main(int argc, char* argv[]) {
-    qDebug() << "Starting Thetis_linux";
+int main(int argc, char *argv[])
+{
     QApplication app(argc, argv);
-    qDebug() << "QApplication initialized";
+    qDebug() << "ThetisCpp starting";
 
+    // Initialize components
     Console console;
-    qDebug() << "Console initialized";
-
-    TCPIPtciSocketListener server(40000, &console);
-    server.Start();
-    qDebug() << "TCP server started on port 40000";
-
-    CWKeyer keyer(&console);
-    keyer.setIambic(true);
-    keyer.setKeyerSpeed(20);
-    keyer.setBreakIn(true);
-    keyer.setBreakInDelay(50);
-    keyer.key(true);
-    QThread::msleep(100);
-    keyer.key(false);
-    qDebug() << "CW keyer initialized and tested";
-
-    Audio audio(&console);
-    if (audio.initialize(48000, 256)) {
-        audio.start();
-        qDebug() << "Audio initialized and started";
-    } else {
-        qDebug() << "Audio initialization failed";
-    }
-
-    Filter filter(&console);
-    filter.setFilterType("Bandpass");
-    filter.setFilterBandwidth(3000);
-    qDebug() << "Filter initialized";
-
-    VFO vfo(&console);
-    vfo.setFrequency(7000000);
-    vfo.setVFOMode("VFO A");
-    vfo.setStepSize(100);
-    qDebug() << "VFO initialized";
-
+    Radio radio(&console);
     NetworkIO networkIO(&console);
-    if (networkIO.initialize("192.168.1.100", 1024)) {
-        networkIO.sendCommand("START");
-        qDebug() << "NetworkIO initialized and START command sent";
-    } else {
-        qDebug() << "NetworkIO initialization failed";
-    }
-
-    QTimer iqTimer(&app);
-    QObject::connect(&iqTimer, &QTimer::timeout, &networkIO, &NetworkIO::simulateIQData);
-    iqTimer.start(1000);
-
-    Setup setup(&console, &filter, &vfo);
-    setup.show();
-    qDebug() << "Setup dialog shown";
-
-    Display display(&console, &networkIO);
-    display.show();
-    qDebug() << "Display widget shown";
-
     WaveControl waveControl(&console);
+    Display display(&console, nullptr);
+
+    // Connect NetworkIO to Display for spectrum updates
+    bool connected = QObject::connect(&networkIO, &NetworkIO::spectrumDataAvailable,
+                                      &display, &Display::updateSpectrum);
+    qDebug() << "NetworkIO to Display connection:" << (connected ? "Success" : "Failed");
+
+    // Show main components
     waveControl.show();
-    qDebug() << "WaveControl dialog shown";
+    display.show();
 
-    qDebug() << "No serial device connected, skipping CAT initialization";
+    // Configure initial settings
+    radio.setFrequency(14.0e6); // 14 MHz
+    display.setCenterFrequency(14.0e6);
+    display.setBandwidth(96000); // 96 kHz
+    networkIO.setHost("localhost", 50001);
+    networkIO.start();
 
-    qDebug() << "Entering event loop";
+    qDebug() << "Main application loop starting";
     return app.exec();
 }

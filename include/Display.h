@@ -1,35 +1,51 @@
-#ifndef DISPLAY_H
-#define DISPLAY_H
+#ifndef INCLUDED_DISPLAY_H
+#define INCLUDED_DISPLAY_H
 
 #include <QWidget>
-#include <QPainter>
-#include <QTimer>
+#include <vector>
 
 class Console;
-class NetworkIO;
+
+class SpectrumWidget : public QWidget {
+    Q_OBJECT
+
+public:
+    explicit SpectrumWidget(QWidget* parent = nullptr);
+    void setData(const std::vector<float>& data, double centerFrequency, int bandwidth);
+
+protected:
+    void paintEvent(QPaintEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+
+signals:
+    void frequencySelected(double freq);
+
+private:
+    std::vector<float> spectrumData_;
+    double centerFrequency_;
+    int bandwidth_;
+};
 
 class Display : public QWidget {
     Q_OBJECT
 
 public:
-    explicit Display(Console* console, NetworkIO* networkIO = nullptr, QWidget* parent = nullptr);
+    explicit Display(Console* console, QWidget* parent = nullptr);
     ~Display();
 
-public slots:
-    void updateSpectrumData(const QVector<float>& data);
+    void setCenterFrequency(double freq);
+    void setBandwidth(int bw);
+    void updateSpectrum(const float* data, int size);
 
-protected:
-    void paintEvent(QPaintEvent* event) override;
-
-private slots:
-    void updateDisplay();
+signals:
+    void frequencyChanged(double freq);
 
 private:
-    Console* console_;
-    NetworkIO* networkIO_;
-    QTimer* timer_;
-    QVector<float> spectrumData_;
-    qint64 updateCount_; // Added to track updates
+    Console* palette_;
+    SpectrumWidget* spectrumWidget_;
+    std::vector<float> spectrumData_; // Added
+    double centerFrequency_;
+    int bandwidth_;
 };
 
-#endif // DISPLAY_H
+#endif // INCLUDED_DISPLAY_H

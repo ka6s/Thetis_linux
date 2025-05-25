@@ -3,9 +3,9 @@
 
 #include <QObject>
 #include <portaudio.h>
-#include <QString>
 
 class Console;
+class AudioProcessor;
 
 class Audio : public QObject {
     Q_OBJECT
@@ -31,10 +31,10 @@ private:
 
     Console* console_;
     bool initialized_;
-    void* stream_;
+    PaStream* stream_;
     bool playbackEnabled_;
     double preampGain_;
-    // Add playback/recording state (implemented later)
+    AudioProcessor* processor_; // Added
 };
 
 #endif // AUDIO_H

@@ -1,93 +1,101 @@
 #include <Console.h>
-#include <wdsp.h>
 #include <QDebug>
+#include <QStandardPaths>
+#include <QDir>
+#include <QTcpSocket>
 
 Console::Console(QObject* parent)
     : QObject(parent),
-      channel_(0),
       sampleRate_(48000),
-      audioMode_("CW"),
-      frequency_(7000000),
-      mode_("2") {
+      appDataPath_(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/Thetis/"),
+      frequency_(7000000), // Initialize to 7 MHz
+      rx1DSPMode_("2"), // Initialize to USB
+      filterBandwidth_(3000) { // Initialize to 3000 Hz
+    QDir().mkpath(appDataPath_);
     qDebug() << "Console constructor started";
-    initializeWDSP();
+    // Placeholder WDSP initialization
     qDebug() << "Console constructor finished";
 }
 
 Console::~Console() {
-    qDebug() << "Console destructor started";
-    destroy_anbEXT(channel_);
-    qDebug() << "Console destructor finished";
-}
-
-void Console::initializeWDSP() {
-    qDebug() << "Initializing WDSP for channel" << channel_;
-    OpenChannel(channel_, 256, 256, sampleRate_, sampleRate_, sampleRate_, 0, 1, 0.0, 0.0, 0.0, 0.0, 0);
-    qDebug() << "WDSP channel opened";
-    create_anbEXT(channel_, 1, 256, sampleRate_, 0.0001, 0.1, 0.01, 0.0002, 0.001);
-    qDebug() << "WDSP noise blanker created";
-    SetRXAMode(channel_, 2);
-    qDebug() << "WDSP mode set to USB";
-}
-
-void Console::tci_cmd(const QString& cmd, QTcpSocket* client) {
-    qDebug() << "TCI command:" << cmd;
-    QString response = "ACK:" + cmd;
-
-    if (cmd.startsWith("FREQ")) {
-        QString freqStr = cmd.mid(4);
-        bool ok;
-        qint64 freq = freqStr.toLongLong(&ok);
-        if (ok) {
-            setFrequency(freq);
-            response = QString("FREQ:%1").arg(freq);
-        }
-    } else if (cmd.startsWith("MODE")) {
-        QString mode = cmd.mid(4);
-        setMode(mode);
-        response = "MODE:" + mode;
-    }
-
-    client->write(response.toUtf8());
-}
-
-void Console::setCWTone(bool state) {
-    qDebug() << "CW Tone:" << (state ? "On" : "Off");
-}
-
-void Console::setCWToneDuration(int duration) {
-    qDebug() << "CW Tone Duration:" << duration << "ms";
+    qDebug() << "Console destructed";
 }
 
 void Console::setSampleRate(int rate) {
     sampleRate_ = rate;
-    qDebug() << "Sample Rate:" << rate;
-    SetInputSamplerate(channel_, rate);
-    SetEXTANBSamplerate(channel_, rate);
+    qDebug() << "Sample rate set to:" << rate;
 }
 
-void Console::setAudioMode(const QString& mode) {
-    audioMode_ = mode;
-    qDebug() << "Audio Mode:" << mode;
-    int wdspMode = (mode == "CW" ? 6 : mode == "AM" ? 3 : 2);
-    SetRXAMode(channel_, wdspMode);
+int Console::getSampleRate() const {
+    return sampleRate_;
+}
+
+QString Console::getRX1DSPMode() const {
+    return rx1DSPMode_;
+}
+
+double Console::getVFOAFreq() const {
+    return frequency_ / 1e6; // Return in MHz
+}
+
+QString Console::getAppDataPath() const {
+    return appDataPath_;
+}
+
+void Console::setWavePlayback(bool enabled) {
+    qDebug() << "Wave playback:" << (enabled ? "Enabled" : "Disabled");
+    // Implement in Audio
+}
+
+void Console::setWaveRecord(bool enabled) {
+    qDebug() << "Wave record:" << (enabled ? "Enabled" : "Disabled");
+    // Implement in Audio
+}
+
+void Console::setWavePreamp(double gain) {
+    qDebug() << "Wave preamp set to:" << gain;
+    // Implement in Audio
 }
 
 void Console::setFrequency(qint64 freq) {
-    frequency_ = freq;
-    qDebug() << "Frequency:" << freq << "Hz";
+    if (freq >= 100000 && freq <= 30000000) { // Validate 0.1–30 MHz
+        frequency_ = freq;
+        qDebug() << "Frequency set to:" << freq << "Hz";
+        // Placeholder: Future WDSP integration
+        // SetRXAFrequency(channel(), freq);
+    } else {
+        qDebug() << "Invalid frequency:" << freq;
+    }
 }
 
 void Console::setMode(const QString& mode) {
-    mode_ = mode;
-    qDebug() << "Mode:" << mode;
-    int wdspMode = 2;
-    if (mode == "1") wdspMode = 1;
-    else if (mode == "3") wdspMode = 3;
-    else if (mode == "6") wdspMode = 6;
-    SetRXAMode(channel_, wdspMode);
+    QStringList validModes = {"1", "2", "3", "6"}; // LSB, USB, AM, CW
+    if (validModes.contains(mode)) {
+        rx1DSPMode_ = mode;
+        qDebug() << "Radio mode set to:" << mode << "("
+                 << (mode == "1" ? "LSB" : mode == "2" ? "USB" : mode == "3" ? "AM" : "CW") << ")";
+        // Placeholder: Future WDSP integration
+        // SetRXMode(channel(), mode.toInt());
+    } else {
+        qDebug() << "Invalid radio mode:" << mode;
+    }
 }
 
 void Console::setFilterBandwidth(int bandwidth) {
-    qDebug() << "Filter Bandwidth:" << bandwidth << "Hz";
+    if (bandwidth >= 100 && bandwidth <= 10000) { // Validate 100–10000 Hz
+        filterBandwidth_ = bandwidth;
+        qDebug() << "Filter bandwidth set to:" << bandwidth << "Hz";
+        // Placeholder: Future WDSP integration
+        // SetRXFilter(channel(), bandwidth);
+    } else {
+        qDebug() << "Invalid filter bandwidth:" << bandwidth;
+    }
+}
+
+void Console::tci_cmd(const QString& command, QTcpSocket* client) {
+    qDebug() << "Received TCI command:" << command;
+    // Placeholder: Implement TCI protocol parsing
+    // Example: Parse commands like "frequency:7000000;" or "mode:USB;"
+    QString response = "OK;" + command; // Placeholder response
+    client->write(response.toUtf8());
 }

@@ -1,7 +1,8 @@
 #include <Audio.h>
 #include <Console.h>
+#include <AudioProcessor.h>
 #include <QDebug>
-#include <cmath>
+#include <algorithm>
 
 Audio::Audio(Console* console, QObject* parent)
     : QObject(parent),
@@ -9,12 +10,14 @@ Audio::Audio(Console* console, QObject* parent)
       initialized_(false),
       stream_(nullptr),
       playbackEnabled_(false),
-      preampGain_(1.0) {
+      preampGain_(1.0),
+      processor_(new AudioProcessor(this)) {
     qDebug() << "Audio initialized";
 }
 
 Audio::~Audio() {
     stop();
+    qDebug() << "Audio destructed";
 }
 
 bool Audio::initialize(int sampleRate, int bufferSize) {
@@ -61,8 +64,8 @@ bool Audio::initialize(int sampleRate, int bufferSize) {
         sampleRate,
         bufferSize,
         paClipOff,
-        nullptr, // Muted
-        nullptr
+        audioCallback,
+        this
     );
     if (err != paNoError) {
         qDebug() << "Failed to open PortAudio stream:" << Pa_GetErrorText(err);
@@ -99,23 +102,27 @@ void Audio::stop() {
 }
 
 bool Audio::startPlayback(const QString& filename, int id) {
-    qDebug() << "Starting playback for:" << filename << "ID:" << id;
-    // Implement WAV file reading and playback
-    return true; // Placeholder
+    if (!initialized_) {
+        qDebug() << "Audio: Not initialized";
+        return false;
+    }
+    return processor_->startPlayback(filename, id);
 }
 
 bool Audio::startRecording(const QString& filename, int channels, int sampleRate) {
-    qDebug() << "Starting recording to:" << filename << "Channels:" << channels << "SampleRate:" << sampleRate;
-    // Implement WAV file writing
-    return true; // Placeholder
+    if (!initialized_) {
+        qDebug() << "Audio: Not initialized";
+        return false;
+    }
+    return processor_->startRecording(filename, channels, sampleRate);
 }
 
 void Audio::stopPlayback(int id) {
-    qDebug() << "Stopping playback for ID:" << id;
+    processor_->stopPlayback(id);
 }
 
 void Audio::stopRecording() {
-    qDebug() << "Stopping recording";
+    processor_->stopRecording();
 }
 
 void Audio::setPlaybackEnabled(bool enabled) {
@@ -125,12 +132,24 @@ void Audio::setPlaybackEnabled(bool enabled) {
 
 void Audio::setPreamp(double gain) {
     preampGain_ = gain;
+    processor_->setPreamp(gain);
     qDebug() << "Preamp gain set to:" << gain;
 }
 
 int Audio::audioCallback(const void* input, void* output, unsigned long frameCount,
                          const PaStreamCallbackTimeInfo* timeInfo,
                          PaStreamCallbackFlags statusFlags, void* userData) {
-    // Implement playback/recording logic
+    Audio* audio = static_cast<Audio*>(userData);
+    float* out = static_cast<float*>(output);
+    float* in = static_cast<float*>(const_cast<void*>(input));
+
+    // Clear output buffer
+    std::fill(out, out + frameCount * 2, 0.0f); // Assuming stereo
+
+    // Process audio if playback is enabled
+    if (audio->playbackEnabled_) {
+        return audio->processor_->processAudio(in, out, frameCount);
+    }
+
     return paContinue;
 }
